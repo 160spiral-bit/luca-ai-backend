@@ -1,0 +1,12 @@
+node_modules/
+.env
+env-config.txt
+users.json
+# Runtime data written by the server: user chat records, per-account model
+# stats, and the auth pending-signup map. None of these belong in git.
+user-data.json
+user-stats.json
+bans.json
+pending-signups.json
+*.log
+.wrangler/

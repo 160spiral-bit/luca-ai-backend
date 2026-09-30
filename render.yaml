@@ -1,0 +1,86 @@
+services:
+  - type: web
+    name: luca-ai
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    # NOTE: Render caps a service at 20 environment variables. This file is
+    # deliberately kept to exactly 20 so a Blueprint sync can never drift past
+    # the cap. Anything removed to make room is justified inline below — check
+    # the reasons before re-adding anything.
+    #
+    # The Node version is pinned in .node-version instead of NODE_VERSION so it
+    # does not consume one of the 20 slots.
+    envVars:
+      # --- Core / auth (11) ------------------------------------------------
+      # JWT_SECRET must never be missing: server.js refuses to boot in
+      # production without it, so a redeploy with this unset takes the service
+      # down entirely.
+      - key: JWT_SECRET
+        generateValue: true
+      # NODE_ENV=production arms every fail-closed check in server.js
+      # (JWT_SECRET, OWNER_EMAIL). Without it the server assumes dev and boots
+      # with ephemeral secrets.
+      - key: NODE_ENV
+        value: production
+      # FRONTEND_URL builds the CORS origin allowlist. Unset means the deployed
+      # frontend's origin is rejected and every API call fails CORS.
+      - key: FRONTEND_URL
+        syncValue: false
+      - key: OAUTH_REDIRECT
+        syncValue: false
+      # OWNER_EMAIL is the admin identity. server.js hard-fails boot without
+      # it rather than falling back to a literal, so there is no default admin.
+      - key: OWNER_EMAIL
+        syncValue: false
+      - key: SMTP_USER
+        syncValue: false
+      - key: SMTP_PASS
+        syncValue: false
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        syncValue: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        syncValue: false
+      - key: GITHUB_OAUTH_CLIENT_ID
+        syncValue: false
+      - key: GITHUB_OAUTH_CLIENT_SECRET
+        syncValue: false
+      # --- Provider keys (9) -----------------------------------------------
+      # Credentials live here and only here. See providerKeys() in server.js:
+      # a provider with no key is skipped at routing time rather than failing
+      # a request, and startup logs name any provider left unconfigured.
+      # CROWLLM_KEY and UNOROUTER_KEY were removed: live probes proved both
+      # dead (invalid token; all :free models failing), and their slots now
+      # hold NODE_ENV and OWNER_EMAIL above.
+      - key: OPENROUTER_KEY
+        syncValue: false
+      - key: AGNES_KEY
+        syncValue: false
+      - key: GROQ_KEY
+        syncValue: false
+      - key: GOOGLE_KEY
+        syncValue: false
+      - key: YJS_KEY
+        syncValue: false
+      - key: COMPOSITE_KEY
+        syncValue: false
+      - key: AIHUBMIX_KEY
+        syncValue: false
+      - key: ZEN_KEY
+        syncValue: false
+      - key: KIOSAPI_KEY
+        syncValue: false
+    # --- Intentionally NOT env vars ---------------------------------------
+    # NODE_VERSION      -> .node-version (same pin, costs no slot)
+    # SMTP_HOST         -> server.js defaults to smtp.gmail.com (identical)
+    # SMTP_PORT         -> server.js defaults to 587 (identical)
+    # EMAIL_USER/PASS   -> byte-identical duplicates of SMTP_USER/PASS, and
+    #                      server.js reads the SMTP pair first
+    # EMAIL_FROM        -> identical to SMTP_USER; server.js falls back to it
+    # GUEST_DAILY_LIMIT -> optional; code defaults to 60/day
+    #
+    # Slot budget is full at 20/20. Adding a var evicts an existing one, which
+    # is how JWT_SECRET was dropped once already. Free a slot (or move a value
+    # into a .env-style default in code) before adding another.
